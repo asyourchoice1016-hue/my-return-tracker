@@ -1,0 +1,39 @@
+<!doctype html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.webmanifest">
+<title>My Return Tracker</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f3f4f6;color:#111827}header{background:#111827;color:white;padding:18px}main{max-width:700px;margin:auto;padding:14px}
+.card{background:white;border-radius:16px;padding:15px;margin-bottom:12px;box-shadow:0 2px 10px #0001}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+input,select,button{font:inherit;padding:11px;border-radius:10px}input,select{width:100%;border:1px solid #ccc}button{border:0;font-weight:700}.primary{background:#2563eb;color:white}.danger{background:#fee2e2;color:#991b1b}.secondary{background:#e5e7eb}
+label{display:block;margin:8px 0;font-size:13px;font-weight:700}label input,label select{margin-top:5px;width:calc(100% - 24px)}
+.person{padding:14px 4px;border-bottom:1px solid #eee}.person:last-child{border:0}.bar{height:7px;background:#ddd;border-radius:9px;margin-top:8px}.fill{height:100%;background:#2563eb;border-radius:9px}
+.hidden{display:none}.muted{color:#6b7280;font-size:13px}.history{padding:10px 0;border-bottom:1px solid #eee}
+@media(max-width:520px){.grid{grid-template-columns:1fr}form{display:block}}
+</style></head><body>
+<header><h2>My Return Tracker</h2><div>Track money you need to return</div></header><main>
+<section id="home">
+<div class="grid"><div class="card"><small>Total to Return</small><h3 id="total">₹0</h3></div><div class="card"><small>Returned</small><h3 id="paid">₹0</h3></div><div class="card"><small>Remaining</small><h3 id="remain">₹0</h3></div></div>
+<div class="card"><div class="row"><h3>People</h3><span id="count" class="muted"></span></div><div id="people"></div><p id="empty" class="muted">No people added yet.</p></div>
+<div class="card"><h3>Add Person</h3><form id="add"><label>Name<input id="name" required></label><label>Type<select id="type"><option>Loan</option><option>EMI</option><option>Due</option></select></label><label>Total amount to return<input id="amount" type="number" min=".01" step=".01" required></label><label>Due date<input id="due" type="date"></label><label>Note<input id="note"></label><button class="primary" type="submit">+ Add Person</button></form></div>
+</section>
+<section id="detail" class="hidden"><button class="secondary" id="back">← People</button><div class="card"><div class="row"><div><h2 id="dn"></h2><div id="meta" class="muted"></div></div><button class="secondary" id="edit">Edit</button></div><div class="grid"><div><small>Total</small><h3 id="dt"></h3></div><div><small>Returned</small><h3 id="dp"></h3></div><div><small>Remaining</small><h3 id="dr"></h3></div></div><div class="bar"><div id="fill" class="fill"></div></div></div>
+<div class="card"><h3>Return Money</h3><form id="payment"><label>Amount<input id="pa" type="number" min=".01" step=".01" required></label><label>Date<input id="pd" type="date"></label><label>Note<input id="pn"></label><button class="primary">+ Record Payment</button></form></div>
+<div class="card"><h3>Payment History</h3><div id="history"></div><p id="nohist" class="muted">No payments yet.</p></div>
+<div class="card"><button class="danger" id="del">Delete Person</button></div></section></main>
+<script>
+const K='returnTrackerData';let people=JSON.parse(localStorage.getItem(K)||'[]'),sel=-1;
+const $=x=>document.getElementById(x),fmt=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+function paid(p){return p.payments.reduce((a,x)=>a+x.amount,0)}function save(){localStorage.setItem(K,JSON.stringify(people))}
+function home(){let t=0,p=0;people.forEach(x=>{t+=x.total;p+=paid(x)});$('total').textContent=fmt(t);$('paid').textContent=fmt(p);$('remain').textContent=fmt(t-p);$('count').textContent=people.length+' people';$('empty').style.display=people.length?'none':'block';$('people').innerHTML=people.map((x,i)=>{let q=paid(x),r=x.total-q,z=x.total?Math.min(100,q/x.total*100):0;return '<div class="person" onclick="openPerson('+i+')"><div class="row"><b>'+x.name+'</b><b>'+fmt(r)+'</b></div><div class="muted">'+x.type+(x.due?' • Due '+x.due:'')+'</div><div class="bar"><div class="fill" style="width:'+z+'%"></div></div></div>'}).join('')}
+function openPerson(i){sel=i;let p=people[i],q=paid(p),r=p.total-q;$('home').classList.add('hidden');$('detail').classList.remove('hidden');$('dn').textContent=p.name;$('meta').textContent=p.type+(p.due?' • Due '+p.due:'')+(p.note?' • '+p.note:'');$('dt').textContent=fmt(p.total);$('dp').textContent=fmt(q);$('dr').textContent=fmt(r);$('fill').style.width=(p.total?Math.min(100,q/p.total*100):0)+'%';$('nohist').style.display=p.payments.length?'none':'block';$('history').innerHTML=p.payments.slice().reverse().map((x,j)=>'<div class="history"><b>'+fmt(x.amount)+'</b><div class="muted">'+x.date+(x.note?' • '+x.note:'')+'</div><button class="secondary" onclick="editPay('+(p.payments.length-1-j)+')">Edit</button> <button class="danger" onclick="delPay('+(p.payments.length-1-j)+')">Delete</button></div>').join('')}
+$('add').onsubmit=e=>{e.preventDefault();people.push({name:$('name').value.trim(),type:$('type').value,total:+$('amount').value,due:$('due').value,note:$('note').value,payments:[]});save();e.target.reset();home()}
+$('back').onclick=()=>{$('detail').classList.add('hidden');$('home').classList.remove('hidden');home()}
+$('payment').onsubmit=e=>{e.preventDefault();let p=people[sel],a=+$('pa').value;if(a<=0||a>p.total-paid(p))return alert('Amount is greater than remaining balance.');p.payments.push({amount:a,date:$('pd').value||new Date().toISOString().slice(0,10),note:$('pn').value});save();e.target.reset();openPerson(sel)}
+function editPay(i){let p=people[sel],n=+prompt('Payment amount',p.payments[i].amount);if(n>0&&paid(p)-p.payments[i].amount+n<=p.total){p.payments[i].amount=n;save();openPerson(sel)}}
+function delPay(i){if(confirm('Delete this payment?')){people[sel].payments.splice(i,1);save();openPerson(sel)}}
+$('edit').onclick=()=>{let p=people[sel],n=prompt('Name',p.name),a=+prompt('Total amount',p.total);if(n&&a>=paid(p)){p.name=n;p.total=a;save();openPerson(sel)}}
+$('del').onclick=()=>{if(confirm('Delete this person and history?')){people.splice(sel,1);save();$('back').click()}}
+$('pd').value=new Date().toISOString().slice(0,10);home();if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
